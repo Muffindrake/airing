@@ -482,6 +482,9 @@ proc handle_input(svc: ptr service, cmd: string, args: seq[string]) =
                         ext_video_player(terminal = config.terminal, url = url, quality = config.quality_current)
                 return
         of "c", "chat":
+                if svc.chat_native == nil:
+                        not_implemented()
+                        return
                 if args.len == 0:
                         at_least_one_argument()
                         return
