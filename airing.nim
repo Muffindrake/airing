@@ -347,6 +347,9 @@ proc unknown_command(name: string) =
 proc at_least_one_argument() =
         echo "error: command expects at least one argument"
 
+proc only_one_argument() =
+        echo "warning: command expects exactly one argument"
+
 # implies online_count proc pointer != nil
 proc get_url_string(svc: ptr service, arg: string): string =
         var i: int
@@ -378,6 +381,25 @@ proc list_dispatch(svc: ptr service, cmd: string, args: seq[string]) =
         of "q", "quality":
                 for i, e in config.quality:
                         styled_echo styleUnderscore, $i, resetStyle, "\t", e
+                return
+        else:
+                unknown_command(cmd)
+
+proc set_dispatch(svc: ptr service, cmd: string, args: seq[string]) =
+        case cmd:
+        of "q", "quality":
+                if args.len != 1:
+                        only_one_argument()
+                        return
+                if args[0].is_integer:
+                        let i = args[0].parse_int
+                        if i < 0 or i >= config.quality.len:
+                                out_of_bounds(i)
+                                return
+                        config.quality_current = config.quality[i]
+                else:
+                        config.quality_current = args[0]
+                echo "youtube-dl quality set: ", config.quality_current
                 return
         else:
                 unknown_command(cmd)
@@ -468,6 +490,12 @@ proc handle_input(svc: ptr service, cmd: string, args: seq[string]) =
                         if user == "": continue
                         echo "note: issuing chat join command to weechat for channel ", user
                         svc.chat_native(channel = user, external = config.weechat_ttv_buffer)
+                return
+        of "s", "set":
+                if args.len == 0:
+                        at_least_one_argument()
+                        return
+                svc.set_dispatch(args[0], if args.len > 1: args[1 .. ^1] else: @[])
                 return
         of "quit", "exit":
                 quit(QuitSuccess)
