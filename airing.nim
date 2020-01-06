@@ -559,4 +559,5 @@ when is_main_module:
                         handle_input config.service_current, tokens[0], if tokens.len > 1: tokens[1 .. ^1] else: @[]
                 except:
                         echo get_current_exception().msg
+                client_ttv.close
         client_ttv.close
