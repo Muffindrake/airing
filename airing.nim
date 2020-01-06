@@ -399,7 +399,7 @@ proc set_dispatch(svc: ptr service, cmd: string, args: seq[string]) =
                         config.quality_current = config.quality[i]
                 else:
                         config.quality_current = args[0]
-                echo "youtube-dl quality set: ", config.quality_current
+                echo "note: youtube-dl quality set: ", config.quality_current
                 return
         else:
                 unknown_command(cmd)
@@ -413,7 +413,7 @@ proc handle_input(svc: ptr service, cmd: string, args: seq[string]) =
                 for e in args:
                         var url = svc.get_url_string e
                         if url == "": continue
-                        echo "opening default web browser for ", url
+                        echo "note: opening default web browser for ", url
                         open_default_browser url
                 return
         of "f", "fetch":
@@ -432,13 +432,13 @@ proc handle_input(svc: ptr service, cmd: string, args: seq[string]) =
                 for e in args:
                         let url = svc.get_url_string e
                         if url == "": continue
-                        echo "retrieving available quality for ", url
+                        echo "note: retrieving available quality for ", url
                         echo url.ext_youtubedl_quality
                 return
         of "u", "user":
                 svc.user_name = if args.len == 0: default_user() else: args[0]
                 svc.user_id = ""
-                echo "username set to ", svc.user_name
+                echo "note: username set to ", svc.user_name
                 if args.len > 1:
                         only_one_argument_or_none()
                 return
