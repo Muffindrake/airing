@@ -23,20 +23,20 @@ note: successfully fetched service information, 36 online
 ```
 The `g` command fetches online information of the current set user (which is highly platform dependent, but on twitch.tv your following list is public anyway), and then lists the most relevant information such as who is currently streaming, their current game and their stream status text.
 
-Other commands include (<var> refers to a variable amount of arguments that can be indices, context-dependent, or arguments delimited by whitespace or quotes "", while <arg> is a single argument - the angled brackets <> aren't normally part of the command):
+Other commands include (`var` refers to a variable amount of arguments that can be indices, context-dependent, or arguments delimited by whitespace or quotes "", while `arg` is a single argument):
 
-- b <var> : open the default web browser to visit the channel's web page
+- b `var` : open the default web browser to visit the channel's web page
 - f : download online information about the currently set user
-- q <var> : using youtube-dl, list available formats for a given or more streams
-- u <arg> : set current user
-- i <var> : dump detailed channel information
+- q `var` : using youtube-dl, list available formats for a given or more streams
+- u `arg` : set current user
+- i `var` : dump detailed channel information
 - l : list current online information
 - l q : list compiled-in stream quality selections to be selected before passed to youtube-dl
 - l c : list configuration options
 - g : download online information about currently set user, and then list all online channels with name, game and status
-- r <var> : run given channel stream in external video player
-- c <var> : run given channel chat in external chat program (currently weechat)
-- s q <arg> : set quality string to be passed into youtube-dl
+- r `var` : run given channel stream in external video player
+- c `var` : run given channel chat in external chat program (currently weechat)
+- s q `arg` : set quality string to be passed into youtube-dl
 - quit : exit the program
 
 # installation
