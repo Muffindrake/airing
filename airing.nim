@@ -125,7 +125,7 @@ proc ext_youtubedl_quality(url: string): string =
 proc default_user(): string =
         return get_env("USER", "muffindrake").string
 
-proc default_terminal(): string=
+proc default_terminal(): string =
         return "urxvt"
 
 proc set_prompt(s: string) =
@@ -543,20 +543,35 @@ proc init() =
         ]
         config.quality_current = config.quality[1]
         config.noise = Noise.init
-        config.service_current.ident.set_prompt
+        if stdout.is_a_tty:
+                config.service_current.ident.set_prompt
         config.terminal = default_terminal()
         config.weechat_ttv_buffer = "irc.server.twitch"
 
 when is_main_module:
         init()
         while true:
-                let ok = config.noise.read_line
-                if not ok: break
-                let line = config.noise.get_line.strip
-                if line.len != 0:
-                        config.noise.history_add line
+                var line: string
+                if stdout.is_a_tty:
+                        var ok: bool
+                        try:
+                                ok = config.noise.read_line
+                        except EOFError:
+                                break
+                        if not ok:
+                                break
+                        line = config.noise.get_line.strip
+                        if line.len != 0:
+                                config.noise.history_add line
+                        else:
+                                continue
                 else:
-                        continue
+                        try:
+                                line = stdin.read_line
+                        except EOFError:
+                                break
+                        if line.len == 0:
+                                continue
                 let tokens = line.parse_cmdline
                 try:
                         handle_input config.service_current, tokens[0], if tokens.len > 1: tokens[1 .. ^1] else: @[]
