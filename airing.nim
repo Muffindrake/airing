@@ -123,10 +123,10 @@ proc ext_youtubedl_quality(url: string): string =
         return res.output.string
 
 proc default_user(): string =
-        return get_env("USER", "muffindrake").string
+        return get_env("AIRING_USER_TTV", get_env("USER", "muffindrake").string).string
 
 proc default_terminal(): string =
-        return "urxvt"
+        return get_env("AIRING_TERMINAL", "urxvt").string
 
 proc set_prompt(s: string) =
         config.noise.set_prompt Styler.init(styleBright, s, "> ")
@@ -541,12 +541,12 @@ proc init() =
                 "worst",
                 "bestaudio",
         ]
-        config.quality_current = config.quality[1]
+        config.quality_current = get_env("AIRING_QUALITY", config.quality[1]).string
         config.noise = Noise.init
         if stdout.is_a_tty:
                 config.service_current.ident.set_prompt
         config.terminal = default_terminal()
-        config.weechat_ttv_buffer = "irc.server.twitch"
+        config.weechat_ttv_buffer = get_env("AIRING_WEECHAT_BUFFER_TTV", "irc.server.twitch").string
 
 when is_main_module:
         init()
