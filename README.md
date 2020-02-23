@@ -37,7 +37,10 @@ Other commands include (`var` refers to a variable amount of arguments that can 
 - r `var` : run given channel stream in external video player
 - c `var` : run given channel chat in external chat program (currently weechat)
 - s q `arg` : set quality string to be passed into youtube-dl
-- quit : exit the program
+- iq : set mpv's `ytdl-format` value through IPC to what is currently set as quality in airing
+- iq `arg` : set mpv's `ytdl-format` value through IPC to `arg` verbatim without interpreting `arg` in any way
+- ir `arg` : replace the current stream in the mpv player that has an IPC socket exposed ($AIRING_MPV_IPC_PATH) with `arg`, which can be a channel name or an index
+- quit, CTRL+D on empty line : exit the program
 
 # installation
 ```

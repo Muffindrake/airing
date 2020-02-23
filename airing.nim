@@ -47,6 +47,7 @@ type
                 quality_current: string
                 terminal: string
                 weechat_ttv_buffer: string
+                mpv_ipc_path: string
 
 var svc_ttv_info_store: seq[svc_ttv_info]
 var map_svc_ttv_gameid_to_name = init_table[string, string]()
@@ -121,6 +122,9 @@ proc ext_video_player(terminal = "xterm", url, quality: string) =
 proc ext_youtubedl_quality(url: string): string =
         let res = exec_cmd_ex("youtube-dl --socket-timeout 20 -F " & url & " 2>/dev/null | sed -e '/^\\[.*/d' -e '/^format code.*/d' -e '/^ERROR.*/d' | awk '{print $3, $4, $1}'")
         return res.output.string
+
+proc ext_mpv_ipc(command: string, ipc_path: string) =
+        discard exec_shell_cmd(&"echo '{command}' | socat - '{ipc_path}'")
 
 proc default_user(): string =
         return get_env("AIRING_USER_TTV", get_env("USER", "muffindrake").string).string
@@ -500,6 +504,28 @@ proc handle_input(svc: ptr service, cmd: string, args: seq[string]) =
                         return
                 svc.set_dispatch(args[0], if args.len > 1: args[1 .. ^1] else: @[])
                 return
+        of "ir", "ipcrun":
+                if args.len == 0:
+                        at_least_one_argument()
+                        return
+                for e in args:
+                        let url = svc.get_url_string e
+                        if url == "": continue
+                        echo "note: issuing IPC command for mpv to append ", url, " to the playlist (and possibly play)"
+                        ext_mpv_ipc(&"loadfile {url.quote_shell}", config.mpv_ipc_path)
+                return
+        of "iq", "ipcquality":
+                var quality: string
+                if args.len == 0:
+                        quality = config.quality_current
+                elif args.len != 1:
+                        only_one_argument_or_none()
+                        return
+                else:
+                        quality = args[0]
+                echo "note: changing youtube-dl quality setting in mpv to ", quality
+                ext_mpv_ipc(&"set ytdl-format \'{quality.quote_shell}\'", config.mpv_ipc_path)
+                return
         of "quit", "exit":
                 quit(QuitSuccess)
         else:
@@ -520,23 +546,23 @@ proc init() =
         services[TTV].listing = svc_ttv_listing
         config.service_current = addr services[TTV]
         config.quality.add [
-                "best[height <=? 720][tbr <=? 2500]",
-                "best[height <=? 480][tbr <=? 2250]",
-                "best[height <=? 360][tbr <=? 1750]",
-                "best[height <=? 1440]",
-                "best[height <=? 1080]",
-                "best[height <=? 720]",
-                "best[height <=? 480]",
-                "best[tbr <=? 6000]",
-                "best[tbr <=? 5000]",
-                "best[tbr <=? 4000]",
-                "best[tbr <=? 3500]",
-                "best[tbr <=? 3250]",
-                "best[tbr <=? 3000]",
-                "best[tbr <=? 2500]",
-                "best[tbr <=? 2000]",
-                "best[tbr <=? 1500]",
-                "best[tbr <=? 1000]",
+                "best[height<=720][tbr<=2500]",
+                "best[height<=480][tbr<=2250]",
+                "best[height<=360][tbr<=1750]",
+                "best[height<=1440]",
+                "best[height<=1080]",
+                "best[height<=720]",
+                "best[height<=480]",
+                "best[tbr<=6000]",
+                "best[tbr<=5000]",
+                "best[tbr<=4000]",
+                "best[tbr<=3500]",
+                "best[tbr<=3250]",
+                "best[tbr<=3000]",
+                "best[tbr<=2500]",
+                "best[tbr<=2000]",
+                "best[tbr<=1500]",
+                "best[tbr<=1000]",
                 "best",
                 "worst",
                 "bestaudio",
@@ -547,6 +573,7 @@ proc init() =
                 config.service_current.ident.set_prompt
         config.terminal = default_terminal()
         config.weechat_ttv_buffer = get_env("AIRING_WEECHAT_BUFFER_TTV", "irc.server.twitch").string
+        config.mpv_ipc_path = get_env("AIRING_MPV_IPC_PATH", "/tmp/mpvsocket").string
 
 when is_main_module:
         init()
