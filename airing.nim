@@ -511,7 +511,7 @@ proc handle_input(svc: ptr service, cmd: string, args: seq[string]) =
                 for e in args:
                         let url = svc.get_url_string e
                         if url == "": continue
-                        echo "note: issuing IPC command for mpv to append ", url, " to the playlist (and possibly play)"
+                        echo "note: issuing IPC command for mpv to load ", url
                         ext_mpv_ipc(&"loadfile {url.quote_shell}", config.mpv_ipc_path)
                 return
         of "iq", "ipcquality":

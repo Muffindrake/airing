@@ -42,6 +42,13 @@ Other commands include (`var` refers to a variable amount of arguments that can 
 - ir `arg` : replace the current stream in the mpv player that has an IPC socket exposed ($AIRING_MPV_IPC_PATH) with `arg`, which can be a channel name or an index
 - quit, CTRL+D on empty line : exit the program
 
+Environment variables for configuration purposes:
+
+- AIRING_TERMINAL : graphical terminal emulator to run mpv when IPC interface is not used
+- AIRING_USER_TTV : username to default to on start for Twitch.tv
+- AIRING_WEECHAT_BUFFER_TTV : name of weechat IRC buffer for Twitch.tv IRC for IPC purposes (joining channels when connected to that IRC)
+- AIRING_MPV_IPC_PATH : path to mpv unix domain socket file
+
 # installation
 ```
 $ git clone https://github.com/Muffindrake/airing
