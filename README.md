@@ -53,4 +53,6 @@ $ nimble build
 - a recent C compiler
 - the Nim compiler as well as its package manager, Nimble - see https://nim-lang.org/
 - a TLS library such as openssl
+- mpv (currently the only player supported)
+- socat (http://www.dest-unreach.org/socat/), for unix domain socket IPC, required for the mpv IPC features
 - sh-compatible shell
