@@ -8,7 +8,6 @@ import json
 import strformat
 import algorithm
 import browsers
-import system
 import osproc
 import terminal
 
