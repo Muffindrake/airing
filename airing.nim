@@ -36,8 +36,9 @@ type
                 TTV = 0
                 SVC_N
         svc_ttv_info = tuple
-                user_id: string
-                game_id: string
+                user: string
+                user_display: string
+                game: string
                 status: string
         configuration = object
                 noise: Noise
@@ -59,7 +60,7 @@ var services = [
                 name: "Twitch.tv",
                 name_short: "TTV",
                 ident: "twitch",
-                url_api_base: "https://api.twitch.tv/helix/",
+                url_api_base: "https://api.twitch.tv/kraken/",
                 api: "onsyu6idu0o41dl4ixkofx6pqq7ghn",
                 user_name: "",
                 user_id: "",
@@ -105,7 +106,7 @@ proc page_count(page_size, container_length: Natural): Natural =
 proc ext_weechat_irc_join(weechat_buffer_name, channel: string) =
         let fifo_path = get_env("WEECHAT_HOME", "~/.weechat".expand_tilde) & "/weechat_fifo"
         try:
-                write_file(fifo_path, &"{weechat_buffer_name} */join #{channel}\n")
+                write_file fifo_path, &"{weechat_buffer_name} */join #{channel}\n"
         except:
                 raise
 
@@ -143,13 +144,6 @@ proc svc_ttv_online(): Natural =
 proc svc_ttv_username_to_url (name: string): string =
         return "https://twitch.tv/" & name.strip.encode_url
 
-proc svc_ttv_check_game_ids(): seq[string] =
-        var ret: seq[string]
-        for i, e in svc_ttv_info_store:
-                if not map_svc_ttv_gameid_to_name.has_key(e.game_id):
-                        ret.add(e.game_id)
-        return ret
-
 proc svc_ttv_fetch(url: string): string =
         var res: Response
         while true:
@@ -158,9 +152,9 @@ proc svc_ttv_fetch(url: string): string =
                 except:
                         raise
                 if res.code == Http429:
-                        const delay = 20;
+                        const delay = 20
                         echo "note: rate limited, waiting ", delay, " seconds"
-                        sleep(delay * 1000)
+                        sleep delay * 1000
                         continue
                 break
         if res.body.validate_utf8 != -1:
@@ -173,32 +167,36 @@ proc svc_ttv_fetch_user_id_from_name(name: string): string =
         if res == "":
                 raise new_exception(Exception, "no such user: " & name)
         let json = try: res.parse_json except: raise
-        let ret = json{"data"}{0}{"id"}.get_str()
+        let ret = json{"users"}{0}{"_id"}.get_str()
         if ret == "":
                 raise new_exception(Exception, "no such user: " & name)
         return ret
 
 proc svc_ttv_fetch_follows(): seq[string] =
-        var page_token: string
         var url: string
         var ret: seq[string]
         var res: string
+        var total: Natural = 0
+        var offset: Natural = 0
         while true:
-                url = &"{services[TTV].url_api_base}users/follows?first=100&from_id={services[TTV].user_id}"
-                url = url & (if page_token == "": "" else: "&after=" & page_token)
+                if total < offset:
+                        return ret
+                url = &"{services[TTV].url_api_base}users/{services[TTV].user_id}/follows/channels?limit=100&offset={offset}"
                 res = url.svc_ttv_fetch
                 if res == "":
                         raise new_exception(Exception, "invalid json")
                 let json = res.parse_json
-                if json{"data"} == nil:
+                if json{"follows"} == nil:
                         raise new_exception(Exception, "invalid json")
-                for i, e in json{"data"}.get_elems:
-                        if e{"to_id"}.get_str == "":
+                if total == 0:
+                        total = json{"_total"}.get_int
+                        if total == 0:
+                                return ret
+                for i, e in json{"follows"}.get_elems:
+                        if e{"channel"}{"_id"}.get_str == "":
                                 raise new_exception(Exception, "invalid json")
-                        ret.add(e{"to_id"}.get_str)
-                page_token = json{"pagination"}{"cursor"}.get_str
-                if page_token == "":
-                        break
+                        ret.add e{"channel"}{"_id"}.get_str
+                offset += 100
         return ret
 
 proc svc_ttv_fetch_main() =
@@ -217,73 +215,30 @@ proc svc_ttv_fetch_main() =
                 return
         pages = page_count(page_size, user_follows_ids.len)
         while page_index < pages:
-                url = services[TTV].url_api_base & "streams?first=" & $page_size & "&"
-                url &= "user_id=" & user_follows_ids[chunks(page_size, pages, page_index, user_follows_ids.len)].join(sep = "&user_id=")
+                url = services[TTV].url_api_base & "streams?limit=100&stream_type=live&offset=" & $(page_index * 100) & "&"
+                url &= "channel=" & user_follows_ids[chunks(page_size, pages, page_index, user_follows_ids.len)].join(sep = ",")
                 res = url.svc_ttv_fetch
                 let json = res.parse_json
-                for i, e in json{"data"}.get_elems:
+                for i, e in json{"streams"}.get_elems:
                         svc_ttv_info_store.add(svc_ttv_info (
-                                user_id: e{"user_id"}.get_str,
-                                game_id: e{"game_id"}.get_str,
-                                status: e{"title"}.get_str.strip
+                                user: e{"channel"}{"name"}.get_str,
+                                user_display: e{"channel"}{"display_name"}.get_str,
+                                game: e{"channel"}{"game"}.get_str,
+                                status: e{"channel"}{"status"}.get_str.strip
                         ))
-                page_index += 1
-
-proc svc_ttv_fetch_game_by_ids() =
-        var url: string
-        var page_index: Natural
-        var pages: Natural
-        const page_size = 100
-        var res: string
-        var game_ids: seq[string]
-        game_ids = svc_ttv_check_game_ids()
-        if game_ids.len == 0:
-                return
-        pages = page_count(page_size, game_ids.len)
-        while page_index < pages:
-                url = services[TTV].url_api_base & "games?"
-                url &= "id=" & game_ids[chunks(page_size, pages, page_index, game_ids.len)].join(sep = "&id=")
-                res = url.svc_ttv_fetch
-                let json = res.parse_json
-                for i, e in json{"data"}.get_elems:
-                        map_svc_ttv_gameid_to_name[e{"id"}.get_str] = e{"name"}.get_str
-                page_index += 1
-
-proc svc_ttv_fetch_user_login_display() =
-        var url: string
-        var res: string
-        var page_index: Natural
-        var pages: Natural
-        const page_size = 100
-        if svc_ttv_info_store.len == 0:
-                return
-        pages = page_count(page_size, svc_ttv_info_store.len)
-        while page_index < pages:
-                url = services[TTV].url_api_base & "users?id="
-                for i, e in svc_ttv_info_store[chunks_join(page_size, pages, page_index, svc_ttv_info_store.len)]:
-                        url &= e.user_id & "&id="
-                url &= svc_ttv_info_store[if page_index == pages - 1: svc_ttv_info_store.len - 1 else: (page_index + 1) * page_size - 1].user_id
-                res = url.svc_ttv_fetch
-                let json = res.parse_json
-                for i, e in json{"data"}.get_elems:
-                        map_svc_ttv_userid_to_login_display[e{"id"}.get_str] = (e{"login"}.get_str, e{"display_name"}.get_str)
                 page_index += 1
 
 proc svc_ttv_update() =
         if services[TTV].user_id == "":
                 services[TTV].user_id = svc_ttv_fetch_user_id_from_name(services[TTV].user_name)
         svc_ttv_fetch_main()
-        svc_ttv_fetch_game_by_ids()
-        svc_ttv_fetch_user_login_display()
         svc_ttv_info_store.sort do (x, y: svc_ttv_info) -> int:
-                result = cmp(map_svc_ttv_userid_to_login_display[x.user_id][0].to_lower, map_svc_ttv_userid_to_login_display[y.user_id][0].to_lower)
+                result = cmp(x.user.to_lower, y.user.to_lower)
 
 proc svc_ttv_get_user(index: Natural): string =
         if svc_ttv_info_store.len == 0 or index > svc_ttv_info_store.len - 1:
                 raise new_exception(Exception, &"index {index} out of bounds of ttv store length {svc_ttv_info_store.len}")
-        if not map_svc_ttv_userid_to_login_display.has_key(svc_ttv_info_store[index].user_id):
-                raise new_exception(Exception, &"user_id {svc_ttv_info_store[index].user_id} not in map")
-        return map_svc_ttv_userid_to_login_display[svc_ttv_info_store[index].user_id][0]
+        return svc_ttv_info_store[index].user
 
 proc svc_ttv_fetch_user_info(name: string) =
         var url: string
@@ -291,7 +246,7 @@ proc svc_ttv_fetch_user_info(name: string) =
         url = services[TTV].url_api_base & "users?login=" & name.encode_url
         res = url.svc_ttv_fetch
         let json = res.parse_json
-        for i, e in json{"data"}{0}.get_fields:
+        for i, e in json{"users"}{0}.get_fields:
                 echo i, ": ", $e
 
 proc svc_ttv_web_popout(name: string) =
@@ -308,20 +263,9 @@ proc svc_ttv_listing() =
         var disp: string
         var game: string
         for i, e in svc_ttv_info_store:
-                if map_svc_ttv_userid_to_login_display.has_key e.user_id:
-                        login = map_svc_ttv_userid_to_login_display[e.user_id][0]
-                        if login == "":
-                                login = "n/a"
-                        disp = map_svc_ttv_userid_to_login_display[e.user_id][1]
-                        if disp == "":
-                                disp = "n/a"
-                else:
-                        login = "n/a"
-                        disp = "n/a"
-                if map_svc_ttv_gameid_to_name.has_key(e.game_id):
-                        game = map_svc_ttv_gameid_to_name[e.game_id]
-                else:
-                        game = "n/a"
+                login = e.user
+                disp = e.user_display
+                game = e.game
                 if cmp_ignore_case(login, disp) != 0:
                         disp = &"{disp}({login})"
                 if stdout.is_a_tty:
@@ -405,7 +349,7 @@ proc set_dispatch(svc: ptr service, cmd: string, args: seq[string]) =
                 echo "note: youtube-dl quality set: ", config.quality_current
                 return
         else:
-                unknown_command(cmd)
+                unknown_command cmd
 
 proc handle_input(svc: ptr service, cmd: string, args: seq[string]) =
         case cmd:
@@ -511,7 +455,7 @@ proc handle_input(svc: ptr service, cmd: string, args: seq[string]) =
                         let url = svc.get_url_string e
                         if url == "": continue
                         echo "note: issuing IPC command for mpv to load ", url
-                        ext_mpv_ipc(&"loadfile {url.quote_shell}", config.mpv_ipc_path)
+                        ext_mpv_ipc &"loadfile {url.quote_shell}", config.mpv_ipc_path
                 return
         of "iq", "ipcquality":
                 var quality: string
@@ -523,15 +467,16 @@ proc handle_input(svc: ptr service, cmd: string, args: seq[string]) =
                 else:
                         quality = args[0]
                 echo "note: changing youtube-dl quality setting in mpv to ", quality
-                ext_mpv_ipc(&"set ytdl-format \'{quality.quote_shell}\'", config.mpv_ipc_path)
+                ext_mpv_ipc &"set ytdl-format \'{quality.quote_shell}\'", config.mpv_ipc_path
                 return
         of "quit", "exit":
-                quit(QuitSuccess)
+                quit QuitSuccess
         else:
-                unknown_command(cmd)
+                unknown_command cmd
 
 proc init() =
         services[TTV].user_name = default_user()
+        client_ttv.headers["Accept"] = "application/vnd.twitchtv.v5+json"
         client_ttv.headers["Client-ID"] = services[TTV].api
         services[TTV].update = svc_ttv_update
         services[TTV].username_to_url = svc_ttv_username_to_url
