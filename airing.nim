@@ -216,7 +216,7 @@ proc svc_ttv_fetch_main() =
         pages = page_count(page_size, user_follows_ids.len)
         while page_index < pages:
                 url = services[TTV].url_api_base & "streams?limit=100&stream_type=live&offset=" & $(page_index * 100) & "&"
-                url &= "channel=" & user_follows_ids[chunks(page_size, pages, page_index, user_follows_ids.len)].join(sep = ",")
+                url &= "channel=" & user_follows_ids.join(sep = ",")
                 res = url.svc_ttv_fetch
                 let json = res.parse_json
                 for i, e in json{"streams"}.get_elems:
