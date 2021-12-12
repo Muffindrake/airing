@@ -135,7 +135,7 @@ proc default_terminal(): string =
   return get_env("AIRING_TERMINAL", "kitty").string
 
 proc default_token_client(): string =
-  return get_env("TWITCH_CLIENT_ID", "").string
+  return get_env("TWITCH_CLIENT_ID", "onsyu6idu0o41dl4ixkofx6pqq7ghn").string
 
 proc default_token_api(): string =
   return get_env("TWITCH_ACCESS_TOKEN", "").string
