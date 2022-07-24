@@ -1,6 +1,8 @@
 # airing
 A command line interface to live stream services
 
+Currently defunct, due to numerous Twitch API changes which are extremely hostile towards this type of application.
+
 ```
 twitch> u qttsix
 username set to qttsix
